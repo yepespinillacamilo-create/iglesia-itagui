@@ -35,8 +35,7 @@ const gcalUrl = r => {
 
 // ── SHARED UI ─────────────────────────────────────────────────────────────────
 
-const Chip = ({ cls, children }) => <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${cls}`}>{children}</span>
-const Field = ({ label, children }) => <div><label className="text-xs font-medium text-gray-500 block mb-1">{label}</label>{children}</div>
+
 const ic = "w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white"
 
 const Spinner = () => <Loader2 className="w-4 h-4 animate-spin" />
@@ -99,6 +98,23 @@ function Login() {
     </div>
   )
 }
+
+// ── SHARED COMPONENTS (defined outside MainApp to prevent focus loss) ───────────
+
+const IC = "w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white"
+const Chip = ({ cls, children }) => <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${cls}`}>{children}</span>
+const Field = ({ label, children }) => (
+  <div>
+    <label className="text-xs font-medium text-gray-500 block mb-1">{label}</label>
+    {children}
+  </div>
+)
+const SaveBtn = ({ label, onClick, saving }) => (
+  <button onClick={onClick} disabled={saving}
+    className="w-full bg-gray-900 text-white py-3 rounded-xl text-sm font-semibold hover:bg-gray-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+    {saving && <Loader2 className="w-4 h-4 animate-spin" />}{label}
+  </button>
+)
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 
@@ -705,12 +721,7 @@ function MainApp({ user }) {
     </div>
   )
 
-  const SaveBtn = ({ label, onClick }) => (
-    <button onClick={onClick} disabled={saving}
-      className="w-full bg-gray-900 text-white py-3 rounded-xl text-sm font-semibold hover:bg-gray-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-      {saving && <Spinner />}{label}
-    </button>
-  )
+
 
   const ModalTarea = () => (
     mWrap(eTareaId ? 'Editar tarea' : 'Nueva tarea', () => { setMTarea(false); setETareaId(null); setFormT(E_T) }, <>
@@ -740,7 +751,7 @@ function MainApp({ user }) {
       </Field>
       <Field label="Fecha límite"><input type="date" value={formT.fecha} onChange={e => setFormT({ ...formT, fecha: e.target.value })} className={ic} /></Field>
       <Field label="Notas"><textarea value={formT.notas} onChange={e => setFormT({ ...formT, notas: e.target.value })} className={`${ic} resize-none`} rows={2} placeholder="Detalles adicionales..." /></Field>
-      <SaveBtn label={eTareaId ? 'Guardar cambios' : 'Crear tarea'} onClick={saveTask} />
+      <SaveBtn label={eTareaId ? 'Guardar cambios' : 'Crear tarea'} onClick={saveTask} saving={saving} />
     </>
   )
 
@@ -777,7 +788,7 @@ function MainApp({ user }) {
         </select>
       </Field>
       <Field label="Descripción / Agenda"><textarea value={formR.descripcion} onChange={e => setFormR({ ...formR, descripcion: e.target.value })} className={`${ic} resize-none`} rows={2} placeholder="Puntos a tratar..." /></Field>
-      <SaveBtn label={eReunionId ? 'Guardar cambios' : 'Crear reunión'} onClick={saveReunion} />
+      <SaveBtn label={eReunionId ? 'Guardar cambios' : 'Crear reunión'} onClick={saveReunion} saving={saving} />
     </>
   )
 
@@ -797,7 +808,7 @@ function MainApp({ user }) {
           </select>
         </Field>
       </div>
-      <SaveBtn label="Guardar registro" onClick={saveBit} />
+      <SaveBtn label="Guardar registro" onClick={saveBit} saving={saving} />
     </>
   )
 
@@ -813,7 +824,7 @@ function MainApp({ user }) {
         </select>
       </Field>
       <Field label="Descripción"><textarea value={formA.descripcion} onChange={e => setFormA({ ...formA, descripcion: e.target.value })} className={`${ic} resize-none`} rows={2} placeholder="¿De qué se encarga?" /></Field>
-      <SaveBtn label={eAreaId ? 'Guardar cambios' : 'Crear área'} onClick={saveArea} />
+      <SaveBtn label={eAreaId ? 'Guardar cambios' : 'Crear área'} onClick={saveArea} saving={saving} />
     </>
   )
 
