@@ -573,7 +573,7 @@ function MainApp({ user }) {
           </div>
           {areaTareas.length === 0
             ? <div className="bg-gray-50 rounded-2xl p-6 text-center"><p className="text-sm text-gray-400">Sin tareas aún</p></div>
-            : <div className="space-y-2">{areaTareas.map(t => <TaskCard key={t.id} t={t} />)}</div>}
+            : <div className="space-y-2">{areaTareas.map(t => <div key={t.id}>{TaskCard({t})}</div>)}</div>}
         </section>
         <section className="mb-7">
           <div className="flex items-center justify-between mb-3">
@@ -585,7 +585,7 @@ function MainApp({ user }) {
           </div>
           {areaReus.length === 0
             ? <div className="bg-gray-50 rounded-2xl p-6 text-center"><p className="text-sm text-gray-400">Sin reuniones</p></div>
-            : <div className="space-y-2">{areaReus.map(r => <MeetingCard key={r.id} r={r} />)}</div>}
+            : <div className="space-y-2">{areaReus.map(r => <div key={r.id}>{MeetingCard({r})}</div>)}</div>}
         </section>
         <section>
           <div className="flex items-center justify-between mb-3">
@@ -661,7 +661,7 @@ function MainApp({ user }) {
               <button onClick={() => { setTRapido(''); setTEstado('todos'); setTPrioridad('todas'); setTArea('todas'); setTBusqueda('') }}
                 className="mt-2 text-xs text-blue-500">Limpiar filtros</button>
             </div>
-          : tareasFiltradas.map(t => <TaskCard key={t.id} t={t} showArea />)}
+          : tareasFiltradas.map(t => <div key={t.id}>{TaskCard({t, showArea:true})}</div>)}
       </div>
     </div>
   )
@@ -702,7 +702,7 @@ function MainApp({ user }) {
       <div className="space-y-2">
         {reunionesFiltradas.length === 0
           ? <div className="bg-gray-50 rounded-2xl p-10 text-center"><p className="text-sm text-gray-400">Sin reuniones</p></div>
-          : reunionesFiltradas.map(r => <MeetingCard key={r.id} r={r} showArea />)}
+          : reunionesFiltradas.map(r => <div key={r.id}>{MeetingCard({r, showArea:true})}</div>)}
       </div>
     </div>
   )
@@ -923,11 +923,11 @@ function MainApp({ user }) {
       {/* CONTENT */}
       <main className="flex-1 md:ml-56 pb-24 md:pb-10 min-h-screen">
         <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {vista === 'dashboard'    && <ViewDashboard />}
-          {vista === 'areas'        && <ViewAreas />}
-          {vista === 'area_detalle' && <ViewAreaDetalle />}
-          {vista === 'tareas'       && <ViewTareas />}
-          {vista === 'reuniones'    && <ViewReuniones />}
+          {vista === 'dashboard'    && ViewDashboard()}
+          {vista === 'areas'        && ViewAreas()}
+          {vista === 'area_detalle' && ViewAreaDetalle()}
+          {vista === 'tareas'       && ViewTareas()}
+          {vista === 'reuniones'    && ViewReuniones()}
         </div>
       </main>
 
