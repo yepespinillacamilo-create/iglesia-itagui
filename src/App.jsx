@@ -752,7 +752,7 @@ function MainApp({ user }) {
       <Field label="Fecha límite"><input type="date" value={formT.fecha} onChange={e => setFormT({ ...formT, fecha: e.target.value })} className={ic} /></Field>
       <Field label="Notas"><textarea value={formT.notas} onChange={e => setFormT({ ...formT, notas: e.target.value })} className={`${ic} resize-none`} rows={2} placeholder="Detalles adicionales..." /></Field>
       <SaveBtn label={eTareaId ? 'Guardar cambios' : 'Crear tarea'} onClick={saveTask} saving={saving} />
-    </>
+    </>)
   )
 
   const ModalReunion = () => (
@@ -789,7 +789,7 @@ function MainApp({ user }) {
       </Field>
       <Field label="Descripción / Agenda"><textarea value={formR.descripcion} onChange={e => setFormR({ ...formR, descripcion: e.target.value })} className={`${ic} resize-none`} rows={2} placeholder="Puntos a tratar..." /></Field>
       <SaveBtn label={eReunionId ? 'Guardar cambios' : 'Crear reunión'} onClick={saveReunion} saving={saving} />
-    </>
+    </>)
   )
 
   const ModalBitacora = () => (
@@ -809,7 +809,7 @@ function MainApp({ user }) {
         </Field>
       </div>
       <SaveBtn label="Guardar registro" onClick={saveBit} saving={saving} />
-    </>
+    </>)
   )
 
   const ModalArea = () => (
@@ -825,7 +825,7 @@ function MainApp({ user }) {
       </Field>
       <Field label="Descripción"><textarea value={formA.descripcion} onChange={e => setFormA({ ...formA, descripcion: e.target.value })} className={`${ic} resize-none`} rows={2} placeholder="¿De qué se encarga?" /></Field>
       <SaveBtn label={eAreaId ? 'Guardar cambios' : 'Crear área'} onClick={saveArea} saving={saving} />
-    </>
+    </>)
   )
 
   const ModalGestAreas = () => (
