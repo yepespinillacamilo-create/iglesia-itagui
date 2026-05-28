@@ -693,7 +693,7 @@ function MainApp({ user }) {
 
   // ── MODALS ────────────────────────────────────────────────
 
-  const ModalWrap = ({ title, onClose, children }) => (
+  const mWrap = (title, onClose, children) => (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4">
       <div className="bg-white rounded-3xl w-full max-w-md max-h-[93vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white rounded-t-3xl z-10">
@@ -713,7 +713,7 @@ function MainApp({ user }) {
   )
 
   const ModalTarea = () => (
-    <ModalWrap title={eTareaId ? 'Editar tarea' : 'Nueva tarea'} onClose={() => { setMTarea(false); setETareaId(null); setFormT(E_T) }}>
+    mWrap(eTareaId ? 'Editar tarea' : 'Nueva tarea', () => { setMTarea(false); setETareaId(null); setFormT(E_T) }, <>
       <Field label="Título *"><input value={formT.titulo} onChange={e => setFormT({ ...formT, titulo: e.target.value })} className={ic} placeholder="¿Qué hay que hacer?" /></Field>
       <Field label="Área *">
         <select value={formT.area_id} onChange={e => setFormT({ ...formT, area_id: e.target.value })} className={ic}>
@@ -741,11 +741,11 @@ function MainApp({ user }) {
       <Field label="Fecha límite"><input type="date" value={formT.fecha} onChange={e => setFormT({ ...formT, fecha: e.target.value })} className={ic} /></Field>
       <Field label="Notas"><textarea value={formT.notas} onChange={e => setFormT({ ...formT, notas: e.target.value })} className={`${ic} resize-none`} rows={2} placeholder="Detalles adicionales..." /></Field>
       <SaveBtn label={eTareaId ? 'Guardar cambios' : 'Crear tarea'} onClick={saveTask} />
-    </ModalWrap>
+    </>
   )
 
   const ModalReunion = () => (
-    <ModalWrap title={eReunionId ? 'Editar reunión' : 'Nueva reunión'} onClose={() => { setMReunion(false); setEReunionId(null); setFormR(E_R) }}>
+    mWrap(eReunionId ? 'Editar reunión' : 'Nueva reunión', () => { setMReunion(false); setEReunionId(null); setFormR(E_R) }, <>
       <div className="bg-violet-50 rounded-xl p-3 text-xs text-violet-700">📅 Esta reunión se podrá agendar en Google Calendar con un clic.</div>
       <Field label="Título *"><input value={formR.titulo} onChange={e => setFormR({ ...formR, titulo: e.target.value })} className={ic} placeholder="Ej: Reunión pastorado" /></Field>
       <Field label="Área *">
@@ -778,11 +778,11 @@ function MainApp({ user }) {
       </Field>
       <Field label="Descripción / Agenda"><textarea value={formR.descripcion} onChange={e => setFormR({ ...formR, descripcion: e.target.value })} className={`${ic} resize-none`} rows={2} placeholder="Puntos a tratar..." /></Field>
       <SaveBtn label={eReunionId ? 'Guardar cambios' : 'Crear reunión'} onClick={saveReunion} />
-    </ModalWrap>
+    </>
   )
 
   const ModalBitacora = () => (
-    <ModalWrap title="Registro en bitácora" onClose={() => setMBitacora(false)}>
+    mWrap("Registro en bitácora", () => setMBitacora(false), <>
       <Field label="¿Qué ocurrió? *"><textarea value={formB.descripcion} onChange={e => setFormB({ ...formB, descripcion: e.target.value })} className={`${ic} resize-none`} rows={3} placeholder="Describe el evento, decisión o acción..." /></Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Tipo">
@@ -798,11 +798,11 @@ function MainApp({ user }) {
         </Field>
       </div>
       <SaveBtn label="Guardar registro" onClick={saveBit} />
-    </ModalWrap>
+    </>
   )
 
   const ModalArea = () => (
-    <ModalWrap title={eAreaId ? 'Editar área' : 'Nueva área'} onClose={() => { setMArea(false); setEAreaId(null); setFormA(E_A) }}>
+    mWrap(eAreaId ? 'Editar área' : 'Nueva área', () => { setMArea(false); setEAreaId(null); setFormA(E_A) }, <>
       <div className="grid grid-cols-4 gap-3">
         <Field label="Emoji"><input value={formA.emoji} onChange={e => setFormA({ ...formA, emoji: e.target.value })} className={ic} maxLength={2} /></Field>
         <div className="col-span-3"><Field label="Nombre *"><input value={formA.nombre} onChange={e => setFormA({ ...formA, nombre: e.target.value })} className={ic} placeholder="Nombre del área" /></Field></div>
@@ -814,7 +814,7 @@ function MainApp({ user }) {
       </Field>
       <Field label="Descripción"><textarea value={formA.descripcion} onChange={e => setFormA({ ...formA, descripcion: e.target.value })} className={`${ic} resize-none`} rows={2} placeholder="¿De qué se encarga?" /></Field>
       <SaveBtn label={eAreaId ? 'Guardar cambios' : 'Crear área'} onClick={saveArea} />
-    </ModalWrap>
+    </>
   )
 
   const ModalGestAreas = () => (
@@ -939,11 +939,11 @@ function MainApp({ user }) {
       </nav>
 
       {/* MODALS */}
-      {mTarea     && <ModalTarea />}
-      {mReunion   && <ModalReunion />}
-      {mBitacora  && <ModalBitacora />}
-      {mArea      && <ModalArea />}
-      {mGestAreas && <ModalGestAreas />}
+      {mTarea     && ModalTarea()}
+      {mReunion   && ModalReunion()}
+      {mBitacora  && ModalBitacora()}
+      {mArea      && ModalArea()}
+      {mGestAreas && ModalGestAreas()}
 
       {/* TOAST */}
       {toast && (
