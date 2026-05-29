@@ -229,12 +229,15 @@ function ReunionModal({open, onClose, areas, editing, saving, onSave}) {
 
 // ── BITACORA MODAL (own state) ────────────────────────────────────────────────
 function BitacoraModal({open, onClose, saving, onSave}) {
-  const [form, setForm] = useState({descripcion:'',autor:'Camilo',tipo:'gestion'})
-  useEffect(() => { if (open) setForm({descripcion:'',autor:'Camilo',tipo:'gestion'}) }, [open])
+  const hoy = new Date().toISOString().split('T')[0]
+  const EMPTY = {titulo:'',descripcion:'',autor:'Camilo',tipo:'gestion',fecha:hoy}
+  const [form, setForm] = useState(EMPTY)
+  useEffect(() => { if (open) setForm({...EMPTY, fecha:new Date().toISOString().split('T')[0]}) }, [open])
   if (!open) return null
   return (
     <ModalShell title="Registro en bitácora" onClose={onClose}>
-      <Field label="¿Qué ocurrió? *"><textarea value={form.descripcion} onChange={e=>setForm({...form,descripcion:e.target.value})} className={`${IC} resize-none`} rows={3} placeholder="Describe el evento, decisión o acción..."/></Field>
+      <Field label="Título"><input value={form.titulo} onChange={e=>setForm({...form,titulo:e.target.value})} className={IC} placeholder="Ej: Reunión de seguimiento, Incidente técnico..."/></Field>
+      <Field label="Descripción *"><textarea value={form.descripcion} onChange={e=>setForm({...form,descripcion:e.target.value})} className={`${IC} resize-none`} rows={3} placeholder="Describe el evento, decisión o acción..."/></Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Tipo">
           <select value={form.tipo} onChange={e=>setForm({...form,tipo:e.target.value})} className={IC}>
@@ -242,12 +245,15 @@ function BitacoraModal({open, onClose, saving, onSave}) {
             <option value="completado">✅ Completado</option><option value="incidencia">⚠️ Incidencia</option>
           </select>
         </Field>
-        <Field label="Registrado por">
-          <select value={form.autor} onChange={e=>setForm({...form,autor:e.target.value})} className={IC}>
-            <option>Camilo</option><option>Karen</option>
-          </select>
+        <Field label="Fecha">
+          <input type="date" value={form.fecha} onChange={e=>setForm({...form,fecha:e.target.value})} className={IC}/>
         </Field>
       </div>
+      <Field label="Registrado por">
+        <select value={form.autor} onChange={e=>setForm({...form,autor:e.target.value})} className={IC}>
+          <option>Camilo</option><option>Karen</option>
+        </select>
+      </Field>
       <SaveBtn label="Guardar registro" onClick={()=>onSave(form)} saving={saving}/>
     </ModalShell>
   )
@@ -332,6 +338,7 @@ function TareasView({tareas, areas, onEdit, onDelete, onStatus, onNew}) {
   const [filtroPrioridad, setFiltroPrioridad] = useState('todas')
   const [filtroArea, setFiltroArea] = useState('todas')
   const [rapido, setRapido] = useState('')
+  const [orden, setOrden] = useState('creado') // 'creado' | 'fecha'
   const getArea = id => areas.find(a=>a.id===id)
   const filtradas = tareas.filter(t => {
     if (rapido==='urgentes') return isUrgente(t)
@@ -340,6 +347,14 @@ function TareasView({tareas, areas, onEdit, onDelete, onStatus, onNew}) {
       &&(filtroPrioridad==='todas'||t.prioridad===filtroPrioridad)
       &&(filtroArea==='todas'||t.area_id===+filtroArea)
       &&t.titulo.toLowerCase().includes(busqueda.toLowerCase())
+  }).sort((a,b)=>{
+    if (orden==='fecha') {
+      if (!a.fecha && !b.fecha) return 0
+      if (!a.fecha) return 1
+      if (!b.fecha) return -1
+      return a.fecha > b.fecha ? 1 : -1
+    }
+    return 0 // default: keep original order (by created_at from Supabase)
   })
   return (
     <div>
@@ -359,6 +374,15 @@ function TareasView({tareas, areas, onEdit, onDelete, onStatus, onNew}) {
           <Search className="w-4 h-4 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2"/>
           <input value={busqueda} onChange={e=>{setBusqueda(e.target.value);setRapido('')}} placeholder="Buscar tareas..."
             className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-400 bg-white"/>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400 flex-shrink-0">Ordenar:</span>
+          <div className="flex gap-1.5">
+            {[['creado','📋 Creación'],['fecha','📅 Fecha límite']].map(([v,l])=>(
+              <button key={v} onClick={()=>setOrden(v)}
+                className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-xl border transition-all ${orden===v?'bg-gray-900 text-white border-gray-900':'border-gray-200 text-gray-500 hover:border-gray-400'}`}>{l}</button>
+            ))}
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <select value={filtroEstado} onChange={e=>{setFiltroEstado(e.target.value);setRapido('')}} className={IC}>
@@ -527,7 +551,7 @@ function MainApp({user}) {
   const handleSaveBit = async form => {
     if (!form.descripcion.trim()||!areaActual) return
     setSaving(true)
-    await supabase.from('bitacora').insert({area_id:areaActual.id,descripcion:form.descripcion,autor:form.autor,tipo:form.tipo,fecha:HOY})
+    await supabase.from('bitacora').insert({area_id:areaActual.id,titulo:form.titulo||null,descripcion:form.descripcion,autor:form.autor,tipo:form.tipo,fecha:form.fecha||HOY})
     await loadBitacora(); setMBitacora(false); setSaving(false); showToast('Registrado ✓')
   }
 
@@ -662,7 +686,7 @@ function MainApp({user}) {
                 <div className="space-y-2">
                   {bitacora.slice(0,3).map(e=>{const area=getArea(e.area_id);return(
                     <div key={e.id} className="bg-white border border-gray-100 rounded-2xl p-4">
-                      <div className="flex gap-2"><span className="flex-shrink-0">{TIPO_EMOJI[e.tipo]}</span><div className="flex-1 min-w-0"><p className="text-sm text-gray-700 leading-snug">{e.descripcion}</p><p className="text-xs text-gray-400 mt-1">{area?.nombre} · {e.fecha} · {e.autor}</p></div></div>
+                      <div className="flex gap-2"><span className="flex-shrink-0">{TIPO_EMOJI[e.tipo]}</span><div className="flex-1 min-w-0">{e.titulo&&<p className="text-xs font-semibold text-gray-700 mb-0.5">{e.titulo}</p>}<p className="text-sm text-gray-700 leading-snug">{e.descripcion}</p><p className="text-xs text-gray-400 mt-1">{area?.nombre} · {e.fecha} · {e.autor}</p></div></div>
                     </div>
                   )})}
                 </div>
@@ -738,7 +762,7 @@ function MainApp({user}) {
                   {areaBit.length===0?<div className="bg-gray-50 rounded-2xl p-6 text-center"><p className="text-sm text-gray-400">Sin registros</p></div>
                     :<div className="space-y-2">{areaBit.map(e=>(
                       <div key={e.id} className="bg-white border border-gray-100 rounded-2xl p-4">
-                        <div className="flex gap-2"><span>{TIPO_EMOJI[e.tipo]}</span><div className="flex-1"><p className="text-sm text-gray-700 leading-snug">{e.descripcion}</p><p className="text-xs text-gray-400 mt-1">{e.fecha} · {e.autor}</p></div></div>
+                        <div className="flex gap-2"><span>{TIPO_EMOJI[e.tipo]}</span><div className="flex-1">{e.titulo&&<p className="text-xs font-semibold text-gray-700 mb-0.5">{e.titulo}</p>}<p className="text-sm text-gray-700 leading-snug">{e.descripcion}</p><p className="text-xs text-gray-400 mt-1">{e.fecha} · {e.autor}</p></div></div>
                       </div>
                     ))}</div>}
                 </section>
