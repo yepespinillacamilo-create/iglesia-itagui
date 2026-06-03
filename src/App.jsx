@@ -331,31 +331,53 @@ function GestAreasModal({open, onClose, areas, onEdit, onDelete, onAdd}) {
   )
 }
 
+// ── FILTER CHIPS helper ───────────────────────────────────────────────────────
+function FilterChips({label, options, selected, onToggle, scroll=false}) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-gray-400 mb-1.5">{label}</p>
+      <div className={`flex gap-1.5 ${scroll?'overflow-x-auto no-scrollbar pb-1':'flex-wrap'}`}>
+        {options.map(([v,l])=>(
+          <button key={v} onClick={()=>onToggle(v)}
+            className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-xl border transition-all ${selected.has(v)?'bg-gray-900 text-white border-gray-900':'border-gray-200 text-gray-500 hover:border-gray-400'}`}>{l}</button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── TAREAS VIEW (own filter state — no focus loss on typing) ──────────────────
 function TareasView({tareas, areas, onEdit, onDelete, onStatus, onNew}) {
   const [busqueda, setBusqueda] = useState('')
-  const [filtroEstado, setFiltroEstado] = useState('todos')
-  const [filtroPrioridad, setFiltroPrioridad] = useState('todas')
-  const [filtroArea, setFiltroArea] = useState('todas')
+  const [estados, setEstados] = useState(new Set())
+  const [prioridades, setPrioridades] = useState(new Set())
+  const [filtAreas, setFiltAreas] = useState(new Set())
   const [rapido, setRapido] = useState('')
-  const [orden, setOrden] = useState('creado') // 'creado' | 'fecha'
+  const [orden, setOrden] = useState('creado')
   const getArea = id => areas.find(a=>a.id===id)
+
+  const toggle = (set, setter, val) => {
+    const s = new Set(set); s.has(val) ? s.delete(val) : s.add(val); setter(s)
+  }
+  const clearFilters = () => { setEstados(new Set()); setPrioridades(new Set()); setFiltAreas(new Set()); setBusqueda(''); setRapido('') }
+  const hasFilters = estados.size>0 || prioridades.size>0 || filtAreas.size>0 || busqueda
+
   const filtradas = tareas.filter(t => {
     if (rapido==='urgentes') return isUrgente(t)
     if (rapido==='proximas') return isProxima(t)
-    return (filtroEstado==='todos'||t.estado===filtroEstado)
-      &&(filtroPrioridad==='todas'||t.prioridad===filtroPrioridad)
-      &&(filtroArea==='todas'||t.area_id===+filtroArea)
-      &&t.titulo.toLowerCase().includes(busqueda.toLowerCase())
+    return (estados.size===0 || estados.has(t.estado))
+      && (prioridades.size===0 || prioridades.has(t.prioridad))
+      && (filtAreas.size===0 || filtAreas.has(t.area_id))
+      && t.titulo.toLowerCase().includes(busqueda.toLowerCase())
   }).sort((a,b)=>{
     if (orden==='fecha') {
       if (!a.fecha && !b.fecha) return 0
-      if (!a.fecha) return 1
-      if (!b.fecha) return -1
+      if (!a.fecha) return 1; if (!b.fecha) return -1
       return a.fecha > b.fecha ? 1 : -1
     }
-    return 0 // default: keep original order (by created_at from Supabase)
+    return 0
   })
+
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
@@ -363,45 +385,41 @@ function TareasView({tareas, areas, onEdit, onDelete, onStatus, onNew}) {
         <button onClick={onNew} className="flex items-center gap-1 text-sm bg-gray-900 text-white px-3 py-2 rounded-xl hover:bg-gray-700"><Plus className="w-4 h-4"/> Nueva</button>
       </div>
       <p className="text-sm text-gray-400 mb-4">{filtradas.length} tarea{filtradas.length!==1?'s':''}</p>
-      <div className="space-y-3 mb-4">
-        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+      <div className="space-y-4 mb-4">
+        {/* Quick + sort */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
           {[['','Todas'],['urgentes','🔴 Urgentes'],['proximas','⏰ Próximas']].map(([v,l])=>(
-            <button key={v} onClick={()=>{setRapido(v);if(!v){setFiltroEstado('todos');setFiltroPrioridad('todas');setFiltroArea('todas')}}}
+            <button key={v} onClick={()=>{setRapido(v);if(!v)clearFilters()}}
               className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-xl border font-medium transition-all ${rapido===v&&v===''?'bg-gray-900 text-white border-gray-900':rapido===v?'bg-red-600 text-white border-red-600':'border-gray-200 text-gray-500 hover:border-gray-400'}`}>{l}</button>
           ))}
         </div>
+        {/* Search */}
         <div className="relative">
           <Search className="w-4 h-4 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2"/>
           <input value={busqueda} onChange={e=>{setBusqueda(e.target.value);setRapido('')}} placeholder="Buscar tareas..."
             className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-400 bg-white"/>
         </div>
+        {/* Sort */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-400 flex-shrink-0">Ordenar:</span>
-          <div className="flex gap-1.5">
-            {[['creado','📋 Creación'],['fecha','📅 Fecha límite']].map(([v,l])=>(
-              <button key={v} onClick={()=>setOrden(v)}
-                className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-xl border transition-all ${orden===v?'bg-gray-900 text-white border-gray-900':'border-gray-200 text-gray-500 hover:border-gray-400'}`}>{l}</button>
-            ))}
-          </div>
+          {[['creado','📋 Creación'],['fecha','📅 Fecha límite']].map(([v,l])=>(
+            <button key={v} onClick={()=>setOrden(v)}
+              className={`text-xs px-3 py-1.5 rounded-xl border transition-all ${orden===v?'bg-gray-900 text-white border-gray-900':'border-gray-200 text-gray-500 hover:border-gray-400'}`}>{l}</button>
+          ))}
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <select value={filtroEstado} onChange={e=>{setFiltroEstado(e.target.value);setRapido('')}} className={IC}>
-            <option value="todos">Estado: Todos</option><option value="pendiente">Pendiente</option><option value="en_progreso">En progreso</option><option value="completada">Completada</option>
-          </select>
-          <select value={filtroPrioridad} onChange={e=>{setFiltroPrioridad(e.target.value);setRapido('')}} className={IC}>
-            <option value="todas">Prioridad: Todas</option><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option>
-          </select>
-        </div>
-        <select value={filtroArea} onChange={e=>{setFiltroArea(e.target.value);setRapido('')}} className={IC}>
-          <option value="todas">Área: Todas</option>
-          {areas.map(a=><option key={a.id} value={a.id}>{a.emoji} {a.nombre}</option>)}
-        </select>
+        {/* Multi-select chips */}
+        <FilterChips label="Estado" options={[['pendiente','⏳ Pendiente'],['en_progreso','🔵 En progreso'],['completada','✅ Completada']]} selected={estados} onToggle={v=>{toggle(estados,setEstados,v);setRapido('')}}/>
+        <FilterChips label="Prioridad" options={[['alta','🔴 Alta'],['media','🟡 Media'],['baja','⚪ Baja']]} selected={prioridades} onToggle={v=>{toggle(prioridades,setPrioridades,v);setRapido('')}}/>
+        <FilterChips label="Área" scroll options={areas.map(a=>[a.id,`${a.emoji} ${a.nombre}`])} selected={filtAreas} onToggle={v=>{toggle(filtAreas,setFiltAreas,v);setRapido('')}}/>
+        {hasFilters && (
+          <button onClick={clearFilters} className="text-xs text-red-500 hover:text-red-600">✕ Limpiar todos los filtros</button>
+        )}
       </div>
       <div className="space-y-2">
         {filtradas.length===0
           ? <div className="bg-gray-50 rounded-2xl p-10 text-center">
               <p className="text-sm text-gray-400">Sin tareas con estos filtros</p>
-              <button onClick={()=>{setRapido('');setFiltroEstado('todos');setFiltroPrioridad('todas');setFiltroArea('todas');setBusqueda('')}} className="mt-2 text-xs text-blue-500">Limpiar filtros</button>
+              <button onClick={clearFilters} className="mt-2 text-xs text-blue-500">Limpiar filtros</button>
             </div>
           : filtradas.map(t=><TaskCard key={t.id} t={t} area={getArea(t.area_id)} showArea onEdit={onEdit} onDelete={onDelete} onStatus={onStatus}/>)}
       </div>
@@ -452,6 +470,74 @@ function ReunionesView({reuniones, areas, onEdit, onDelete, onStatus, onNew}) {
           ? <div className="bg-gray-50 rounded-2xl p-10 text-center"><p className="text-sm text-gray-400">Sin reuniones</p></div>
           : filtradas.map(r=><MeetingCard key={r.id} r={r} area={getArea(r.area_id)} showArea onEdit={onEdit} onDelete={onDelete} onStatus={onStatus}/>)}
       </div>
+    </div>
+  )
+}
+
+// ── AREA DETALLE VIEW (own filter state) ─────────────────────────────────────
+function AreaDetalleView({area, tareas, reuniones, bitacora, onBack, onEditTask, onDeleteTask, onStatus, onEditReunion, onDeleteReunion, onRStatus, onNewTask, onNewReunion, onNewBitacora}) {
+  const [estados, setEstados] = useState(new Set())
+  const [prioridades, setPrioridades] = useState(new Set())
+  const toggle = (set, setter, val) => { const s=new Set(set); s.has(val)?s.delete(val):s.add(val); setter(s) }
+
+  const areaTareas = tareas.filter(t =>
+    t.area_id === area.id
+    && (estados.size===0 || estados.has(t.estado))
+    && (prioridades.size===0 || prioridades.has(t.prioridad))
+  )
+  const allAreaTareas = tareas.filter(t => t.area_id === area.id)
+  const areaReus = [...reuniones.filter(r=>r.area_id===area.id)].sort((a,b)=>a.fecha>b.fecha?1:-1)
+  const areaBit = bitacora.filter(b=>b.area_id===area.id)
+
+  return (
+    <div>
+      <button onClick={onBack} className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 mb-5"><ArrowLeft className="w-4 h-4"/> Áreas</button>
+      <div className="flex items-center gap-3 mb-6">
+        <span className="text-4xl">{area.emoji}</span>
+        <div><h1 className="text-xl font-bold text-gray-900">{area.nombre}</h1><p className="text-sm text-gray-400">{area.descripcion}</p><p className="text-xs text-gray-400 mt-0.5">👤 {area.responsable}</p></div>
+      </div>
+
+      <section className="mb-7">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-gray-700">Tareas ({areaTareas.length}{areaTareas.length!==allAreaTareas.length?` de ${allAreaTareas.length}`:''})</p>
+          <button onClick={onNewTask} className="flex items-center gap-1 text-xs bg-gray-900 text-white px-3 py-1.5 rounded-xl hover:bg-gray-700"><Plus className="w-3 h-3"/> Nueva tarea</button>
+        </div>
+        {/* Filters */}
+        <div className="space-y-2 mb-3">
+          <FilterChips label="Estado" options={[['pendiente','⏳ Pendiente'],['en_progreso','🔵 En progreso'],['completada','✅ Completada']]} selected={estados} onToggle={v=>toggle(estados,setEstados,v)}/>
+          <FilterChips label="Prioridad" options={[['alta','🔴 Alta'],['media','🟡 Media'],['baja','⚪ Baja']]} selected={prioridades} onToggle={v=>toggle(prioridades,setPrioridades,v)}/>
+          {(estados.size>0||prioridades.size>0) && (
+            <button onClick={()=>{setEstados(new Set());setPrioridades(new Set())}} className="text-xs text-red-500 hover:text-red-600">✕ Limpiar filtros</button>
+          )}
+        </div>
+        {areaTareas.length===0
+          ? <div className="bg-gray-50 rounded-2xl p-6 text-center"><p className="text-sm text-gray-400">{allAreaTareas.length===0?'Sin tareas aún':'Sin tareas con estos filtros'}</p></div>
+          : <div className="space-y-2">{areaTareas.map(t=><TaskCard key={t.id} t={t} area={area} onEdit={onEditTask} onDelete={onDeleteTask} onStatus={onStatus}/>)}</div>}
+      </section>
+
+      <section className="mb-7">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-gray-700">Reuniones ({areaReus.length})</p>
+          <button onClick={onNewReunion} className="flex items-center gap-1 text-xs border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50 text-gray-600"><Plus className="w-3 h-3"/> Nueva reunión</button>
+        </div>
+        {areaReus.length===0
+          ?<div className="bg-gray-50 rounded-2xl p-6 text-center"><p className="text-sm text-gray-400">Sin reuniones</p></div>
+          :<div className="space-y-2">{areaReus.map(r=><MeetingCard key={r.id} r={r} area={area} onEdit={onEditReunion} onDelete={onDeleteReunion} onStatus={onRStatus}/>)}</div>}
+      </section>
+
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-gray-700">Bitácora ({areaBit.length})</p>
+          <button onClick={onNewBitacora} className="flex items-center gap-1 text-xs border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50 text-gray-600"><Plus className="w-3 h-3"/> Registrar</button>
+        </div>
+        {areaBit.length===0
+          ?<div className="bg-gray-50 rounded-2xl p-6 text-center"><p className="text-sm text-gray-400">Sin registros</p></div>
+          :<div className="space-y-2">{areaBit.map(e=>(
+            <div key={e.id} className="bg-white border border-gray-100 rounded-2xl p-4">
+              <div className="flex gap-2"><span>{TIPO_EMOJI[e.tipo]}</span><div className="flex-1">{e.titulo&&<p className="text-xs font-semibold text-gray-700 mb-0.5">{e.titulo}</p>}<p className="text-sm text-gray-700 leading-snug">{e.descripcion}</p><p className="text-xs text-gray-400 mt-1">{e.fecha} · {e.autor}</p></div></div>
+            </div>
+          ))}</div>}
+      </section>
     </div>
   )
 }
@@ -726,49 +812,20 @@ function MainApp({user}) {
           )}
 
           {/* AREA DETALLE */}
-          {vista==='area_detalle' && areaActual && (()=>{
-            const area = areas.find(a=>a.id===areaActual.id)||areaActual
-            const areaTareas = tareas.filter(t=>t.area_id===area.id)
-            const areaReus = [...reuniones.filter(r=>r.area_id===area.id)].sort((a,b)=>a.fecha>b.fecha?1:-1)
-            const areaBit = bitacora.filter(b=>b.area_id===area.id)
-            return (
-              <div>
-                <button onClick={()=>setVista('areas')} className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 mb-5"><ArrowLeft className="w-4 h-4"/> Áreas</button>
-                <div className="flex items-center gap-3 mb-6">
-                  <span className="text-4xl">{area.emoji}</span>
-                  <div><h1 className="text-xl font-bold text-gray-900">{area.nombre}</h1><p className="text-sm text-gray-400">{area.descripcion}</p><p className="text-xs text-gray-400 mt-0.5">👤 {area.responsable}</p></div>
-                </div>
-                <section className="mb-7">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-semibold text-gray-700">Tareas ({areaTareas.length})</p>
-                    <button onClick={()=>{setEditTarea(null);setMTarea(true)}} className="flex items-center gap-1 text-xs bg-gray-900 text-white px-3 py-1.5 rounded-xl hover:bg-gray-700"><Plus className="w-3 h-3"/> Nueva tarea</button>
-                  </div>
-                  {areaTareas.length===0?<div className="bg-gray-50 rounded-2xl p-6 text-center"><p className="text-sm text-gray-400">Sin tareas aún</p></div>
-                    :<div className="space-y-2">{areaTareas.map(t=><TaskCard key={t.id} t={t} area={area} onEdit={t=>{setEditTarea(t);setMTarea(true)}} onDelete={handleDeleteTask} onStatus={handleStatus}/>)}</div>}
-                </section>
-                <section className="mb-7">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-semibold text-gray-700">Reuniones ({areaReus.length})</p>
-                    <button onClick={()=>{setEditReunion(null);setMReunion(true)}} className="flex items-center gap-1 text-xs border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50 text-gray-600"><Plus className="w-3 h-3"/> Nueva reunión</button>
-                  </div>
-                  {areaReus.length===0?<div className="bg-gray-50 rounded-2xl p-6 text-center"><p className="text-sm text-gray-400">Sin reuniones</p></div>
-                    :<div className="space-y-2">{areaReus.map(r=><MeetingCard key={r.id} r={r} area={area} onEdit={r=>{setEditReunion(r);setMReunion(true)}} onDelete={handleDeleteReunion} onStatus={handleRStatus}/>)}</div>}
-                </section>
-                <section>
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-semibold text-gray-700">Bitácora ({areaBit.length})</p>
-                    <button onClick={()=>setMBitacora(true)} className="flex items-center gap-1 text-xs border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50 text-gray-600"><Plus className="w-3 h-3"/> Registrar</button>
-                  </div>
-                  {areaBit.length===0?<div className="bg-gray-50 rounded-2xl p-6 text-center"><p className="text-sm text-gray-400">Sin registros</p></div>
-                    :<div className="space-y-2">{areaBit.map(e=>(
-                      <div key={e.id} className="bg-white border border-gray-100 rounded-2xl p-4">
-                        <div className="flex gap-2"><span>{TIPO_EMOJI[e.tipo]}</span><div className="flex-1">{e.titulo&&<p className="text-xs font-semibold text-gray-700 mb-0.5">{e.titulo}</p>}<p className="text-sm text-gray-700 leading-snug">{e.descripcion}</p><p className="text-xs text-gray-400 mt-1">{e.fecha} · {e.autor}</p></div></div>
-                      </div>
-                    ))}</div>}
-                </section>
-              </div>
-            )
-          })()}
+          {vista==='area_detalle' && areaActual && (
+            <AreaDetalleView
+              area={areas.find(a=>a.id===areaActual.id)||areaActual}
+              tareas={tareas} reuniones={reuniones} bitacora={bitacora}
+              onBack={()=>setVista('areas')}
+              onEditTask={t=>{setEditTarea(t);setMTarea(true)}}
+              onDeleteTask={handleDeleteTask} onStatus={handleStatus}
+              onEditReunion={r=>{setEditReunion(r);setMReunion(true)}}
+              onDeleteReunion={handleDeleteReunion} onRStatus={handleRStatus}
+              onNewTask={()=>{setEditTarea(null);setMTarea(true)}}
+              onNewReunion={()=>{setEditReunion(null);setMReunion(true)}}
+              onNewBitacora={()=>setMBitacora(true)}
+            />
+          )}
 
           {/* TAREAS */}
           {vista==='tareas' && (
