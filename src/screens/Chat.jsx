@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { ArrowUp, Sparkles, AlertTriangle, ClipboardList } from 'lucide-react'
 import { isUrgente, isProxima, HOY, fechaLarga } from '../lib/constants'
-import { areaIcon, areaAccent } from '../lib/icons'
+import { areaIcon } from '../lib/icons'
+import ProposalCard from '../components/ProposalCard'
 
 const SUGERENCIAS = [
   'Dar la predicación este domingo sobre el Salmo 23',
@@ -9,25 +10,6 @@ const SUGERENCIAS = [
   '¿Qué tengo urgente esta semana?',
   'Llevar las sillas para el servicio el sábado',
 ]
-
-function TaskChip({ item, area }) {
-  const Icon = area ? areaIcon(area) : ClipboardList
-  const accent = area ? areaAccent(area) : { tint: 'var(--blue-tint)', fg: 'var(--blue)' }
-  return (
-    <div className="flex gap-2.5 items-center mt-2 p-2.5 rounded-[12px]" style={{ background: accent.tint }}>
-      <Icon className="w-[18px] h-[18px] flex-shrink-0" style={{ color: accent.fg }} />
-      <div className="min-w-0">
-        <p className="text-[13px] font-bold text-[var(--ink)] truncate">{item.titulo}</p>
-        <p className="text-[11.5px] text-[var(--ink-3)]">
-          {area ? area.nombre : 'Sin área'}
-          {item.fecha ? ` · ${fechaLarga(item.fecha)}` : ''}
-          {item.hora ? ` · ${item.hora}` : ''}
-          {item.prioridad ? ` · ${item.prioridad}` : ''}
-        </p>
-      </div>
-    </div>
-  )
-}
 
 function ConsultaChip({ t, area }) {
   const Icon = area ? areaIcon(area) : ClipboardList
@@ -48,7 +30,7 @@ export default function Chat({ data, user }) {
   const nombre = (user?.email || '').includes('karen') ? 'Karen' : 'Camilo'
 
   const [messages, setMessages] = useState([
-    { role: 'bot', text: `¡Hola, ${nombre}! 👋 Cuéntame una tarea, agenda una reunión, o pregúntame qué tienes pendiente.` },
+    { role: 'bot', text: `¡Hola, ${nombre}! 👋 Cuéntame una tarea, agenda una reunión, o pregúntame qué tienes pendiente. Siempre te mostraré una propuesta para que la revises antes de guardar.` },
   ])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -59,11 +41,6 @@ export default function Chat({ data, user }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, busy])
 
-  const autoGrow = () => {
-    const ta = taRef.current
-    if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 100) + 'px' }
-  }
-
   const ejecutarConsulta = (filtro, areaId) => {
     let items = []
     if (filtro === 'urgentes') items = tareas.filter(isUrgente)
@@ -72,6 +49,23 @@ export default function Chat({ data, user }) {
     else items = tareas.filter(t => t.estado !== 'completada')
     if (areaId) items = items.filter(t => t.area_id === areaId)
     return items.slice(0, 8)
+  }
+
+  const confirmProposal = async (kind, form) => {
+    if (kind === 'reunion') {
+      await saveReunion({
+        titulo: form.titulo, area_id: form.area_id, fecha: form.fecha, hora: form.hora,
+        duracion: 60, lugar: form.lugar || '', descripcion: form.notas || '',
+        responsable: form.responsable, estado: 'programada',
+      })
+    } else {
+      await saveTarea({
+        titulo: form.titulo, area_id: form.area_id, estado: 'pendiente',
+        prioridad: form.prioridad || 'media', responsable: form.responsable,
+        fecha: form.fecha, notas: form.notas || '',
+      })
+    }
+    await reload()
   }
 
   const send = async (texto) => {
@@ -96,38 +90,31 @@ export default function Chat({ data, user }) {
       const data = await res.json()
 
       const acciones = data.acciones || []
-      const creadas = []      // chips de cosas creadas
+      const propuestas = []
       let consultaItems = null
 
       for (const a of acciones) {
-        if (a.tipo === 'crear_tarea') {
-          await saveTarea({
-            titulo: a.titulo, area_id: a.area_id, estado: 'pendiente',
-            prioridad: a.prioridad || 'media', responsable: nombre, fecha: a.fecha, notas: a.notas || '',
-          })
-          creadas.push({ kind: 'tarea', item: a })
-        } else if (a.tipo === 'crear_reunion') {
-          await saveReunion({
-            titulo: a.titulo, area_id: a.area_id, fecha: a.fecha, hora: a.hora,
-            duracion: 60, lugar: a.lugar || '', descripcion: a.notas || '', responsable: nombre, estado: 'programada',
-          })
-          creadas.push({ kind: 'reunion', item: a })
+        if (a.tipo === 'proponer_tarea' || a.tipo === 'proponer_reunion') {
+          propuestas.push(a)
         } else if (a.tipo === 'consultar') {
           consultaItems = ejecutarConsulta(a.filtro, a.area_id)
         }
       }
-      if (creadas.length) await reload()
 
-      setMessages(m => [...m, { role: 'bot', text: data.mensaje || 'Listo.', creadas, consultaItems }])
+      setMessages(m => [...m, { role: 'bot', text: data.mensaje || 'Listo.', propuestas, consultaItems }])
     } catch (e) {
       setMessages(m => [...m, { role: 'bot', text: '😕 No pude procesar eso. Revisa tu conexión e intenta de nuevo.', error: true }])
     }
     setBusy(false)
   }
 
+  const autoGrow = () => {
+    const ta = taRef.current
+    if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 100) + 'px' }
+  }
+
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="px-5 pt-6 pb-3 border-b border-[var(--line)] flex items-center gap-3">
         <div className="w-10 h-10 rounded-[12px] flex items-center justify-center" style={{ background: 'var(--blue)', boxShadow: 'var(--sh-blue)' }}>
           <Sparkles className="w-[22px] h-[22px] text-white" />
@@ -140,16 +127,17 @@ export default function Chat({ data, user }) {
         </div>
       </div>
 
-      {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar px-4 py-4 space-y-2.5" style={{ background: 'var(--subtle)' }}>
         {messages.map((m, i) => (
-          <div key={i} className={`max-w-[85%] ${m.role === 'me' ? 'ml-auto' : ''}`} style={{ animation: 'msgIn .42s var(--ease-out) both' }}>
+          <div key={i} className={`${m.role === 'me' ? 'ml-auto max-w-[85%]' : 'max-w-[90%]'}`} style={{ animation: 'msgIn .42s var(--ease-out) both' }}>
             <div className="px-3.5 py-2.5 text-[13.5px] leading-relaxed"
               style={m.role === 'me'
                 ? { background: 'var(--blue)', color: '#fff', borderRadius: '18px 18px 5px 18px', boxShadow: 'var(--sh-blue)' }
                 : { background: '#fff', border: '1px solid var(--line)', borderRadius: '18px 18px 18px 5px', boxShadow: 'var(--sh-sm)' }}>
               <p>{m.text}</p>
-              {m.creadas?.map((c, j) => <TaskChip key={j} item={c.item} area={getArea(c.item.area_id)} />)}
+              {m.propuestas?.map((p, j) => (
+                <ProposalCard key={j} proposal={p} areas={areas} nombre={nombre} onConfirm={confirmProposal} />
+              ))}
               {m.consultaItems && (
                 m.consultaItems.length === 0
                   ? <p className="text-[12px] text-[var(--ink-3)] mt-2 italic">No encontré tareas con ese criterio.</p>
@@ -168,7 +156,6 @@ export default function Chat({ data, user }) {
           </div>
         )}
 
-        {/* Sugerencias (solo al inicio) */}
         {messages.length === 1 && !busy && (
           <div className="pt-2 space-y-2">
             <p className="text-[11px] font-semibold text-[var(--ink-4)] uppercase tracking-wide px-1">Prueba con</p>
@@ -183,11 +170,10 @@ export default function Chat({ data, user }) {
         )}
       </div>
 
-      {/* Input */}
       <div className="px-4 py-3 border-t border-[var(--line)] bg-white flex items-end gap-2"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
         <textarea ref={taRef} value={input} rows={1}
-          onChange={e => { setInput(e.target.value); autoGrowSafe(taRef) }}
+          onChange={e => { setInput(e.target.value); autoGrow() }}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
           placeholder="Escribe o dicta tu mensaje…"
           className="flex-1 bg-[var(--subtle)] border border-[var(--line)] rounded-[20px] px-4 py-3 text-[14px] outline-none resize-none focus:border-[var(--blue)] focus:bg-white transition-colors placeholder:text-[var(--ink-4)] no-scrollbar"
@@ -200,9 +186,4 @@ export default function Chat({ data, user }) {
       </div>
     </div>
   )
-}
-
-function autoGrowSafe(ref) {
-  const ta = ref.current
-  if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 100) + 'px' }
 }
